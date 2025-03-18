@@ -1,6 +1,5 @@
-# docker-compose.yaml
 services:
-  # PostgreSQL for Airflow Metadata
+  # PostgreSQL database for Airflow metadata
   postgres:
     image: postgres:14
     container_name: airflow_postgres
@@ -13,7 +12,7 @@ services:
       interval: 5s
       retries: 5
 
-  # Redis for Celery
+  # Redis for Celery message queue
   redis:
     image: redis:latest
     container_name: airflow_redis
@@ -29,12 +28,45 @@ services:
       - redis
     environment:
       - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__CORE__FERNET_KEY="YOUR_FERNET_KEY"      # Replace with your generated key, in quotes
       - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__CORE__FERNET_KEY=YOUR_FERNET_KEY
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
       - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
       - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://airflow:airflow@postgres:5432/airflow
     volumes:
       - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "airflow db init &&
+               airflow users create 
+                 --username admin 
+                 --password admin 
+                 --firstname admin 
+                 --lastname admin 
+                 --role Admin 
+                 --email admin@example.com &&
+               airflow webserver"
+
+  # Airflow Scheduler
+  airflow-scheduler:
+    image: apache/airflow:2.6.1
+    container_name: airflow_scheduler
+    depends_on:
+      - airflow-webserver
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__CORE__FERNET_KEY="YOUR_FERNET_KEY"      # Must match above
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://airflow:airflow@postgres:5432/airflow
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+    command: airflow scheduler
