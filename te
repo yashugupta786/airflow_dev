@@ -1,0 +1,158 @@
+"""
+A simple PoC DAG for  orchestration with MongoDB run management.
+
+Steps:
+1. start_run -> creates a run record in Mongo ("RUN_2024_Q1_CRE")
+2. ingest_docs -> simulates doc ingestion, updates doc statuses to "Ingested"
+3. ocr_task -> simulates OCR, sets doc statuses to "OCRDone"
+4. llm_task -> simulates LLM-based entity extraction, sets doc statuses to "LLMDone"
+5. index_task -> simulates indexing (vector DB, Azure Cog Search), sets doc statuses to "Indexed"
+6. complete_run -> marks the run as "Completed" in Mongo
+
+In real usage, you'd replace the simulation with actual ingestion, OCR, LLM calls, etc.
+"""
+
+from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
+from datetime import datetime
+from pymongo import MongoClient
+
+default_args = {
+    'owner': 'airflow',
+    'start_date': datetime(2023, 1, 1),
+    'retries': 1,
+}
+
+dag = DAG(
+    'loan_review_poc_dag',
+    default_args=default_args,
+    schedule_interval=None,  # manually trigger in UI
+    description='POC DAG: Loan Review with Mongo run mgmt'
+)
+
+MONGO_URI = "mongodb://mongo:27017/"  # Make sure 'mongo' matches your docker-compose service name
+RUN_ID = "RUN_2024_Q1_CRE"            # Example run identifier
+
+def start_run(**context):
+    """
+    Creates a run record in Mongo:
+      { run_id: "RUN_2024_Q1_CRE",
+        status: "Started",
+        docs: [
+          {doc_id: "DOC001", status: "NotIngested"},
+          {doc_id: "DOC002", status: "NotIngested"}
+        ]
+      }
+    """
+    client = MongoClient(MONGO_URI)
+    db = client.loan_db
+    runs_coll = db.runs
+
+    run_data = {
+        "run_id": RUN_ID,
+        "status": "Started",
+        "docs": [
+            {"doc_id": "DOC001", "status": "NotIngested"},
+            {"doc_id": "DOC002", "status": "NotIngested"}
+        ]
+    }
+    runs_coll.insert_one(run_data)
+    print(f"Created run {RUN_ID} in Mongo with docs DOC001, DOC002.")
+
+def ingest_docs(**context):
+    """
+    Simulate doc ingestion. In real code, you'd fetch from SharePoint
+    or user uploads, then update each doc to 'Ingested'.
+    """
+    client = MongoClient(MONGO_URI)
+    db = client.loan_db
+    run = db.runs.find_one({"run_id": RUN_ID})
+    if run:
+        for doc in run["docs"]:
+            doc["status"] = "Ingested"
+        run["status"] = "IngestionComplete"
+        db.runs.replace_one({"_id": run["_id"]}, run)
+        print(f"Ingested docs for run {RUN_ID}. Now docs are marked 'Ingested'.")
+    else:
+        print("No run found. Possibly start_run didn't run?")
+
+def ocr_task(**context):
+    """
+    Simulate OCR step. In real usage, you'd call Azure Form Recognizer with each doc
+    that is 'Ingested' and store extracted text. Here, we just set them to OCRDone.
+    """
+    client = MongoClient(MONGO_URI)
+    db = client.loan_db
+    run = db.runs.find_one({"run_id": RUN_ID})
+    if run and run.get("docs"):
+        for doc in run["docs"]:
+            if doc["status"] == "Ingested":
+                # In real usage, you'd store doc["ocr_text"] = <some OCR output>
+                doc["status"] = "OCRDone"
+        run["status"] = "OCRComplete"
+        db.runs.replace_one({"_id": run["_id"]}, run)
+        print(f"OCR step complete for run {RUN_ID}.")
+    else:
+        print("No run or no docs to OCR. Check previous tasks?")
+
+def llm_task(**context):
+    """
+    Simulate LLM-based entity extraction. For each doc with OCRDone,
+    call an LLM and store extracted details. We just set them to LLMDone.
+    """
+    client = MongoClient(MONGO_URI)
+    db = client.loan_db
+    run = db.runs.find_one({"run_id": RUN_ID})
+    if run and run.get("docs"):
+        for doc in run["docs"]:
+            if doc["status"] == "OCRDone":
+                # In real usage, doc["entities"] = callLLM(doc["ocr_text"])
+                doc["status"] = "LLMDone"
+        run["status"] = "LLMComplete"
+        db.runs.replace_one({"_id": run["_id"]}, run)
+        print(f"LLM entity extraction complete for run {RUN_ID}.")
+    else:
+        print("No run or no docs to process for LLM. Check OCR step?")
+
+def index_task(**context):
+    """
+    Simulate indexing (vector DB or Azure Cognitive Search).
+    For each doc with LLMDone, set doc status to 'Indexed'.
+    """
+    client = MongoClient(MONGO_URI)
+    db = client.loan_db
+    run = db.runs.find_one({"run_id": RUN_ID})
+    if run and run.get("docs"):
+        for doc in run["docs"]:
+            if doc["status"] == "LLMDone":
+                doc["status"] = "Indexed"
+        run["status"] = "IndexingComplete"
+        db.runs.replace_one({"_id": run["_id"]}, run)
+        print(f"Indexing step complete for run {RUN_ID}.")
+    else:
+        print("No run or no docs to index. Check LLM step?")
+
+def complete_run(**context):
+    """
+    Marks the run as 'Completed' in Mongo once everything is done.
+    """
+    client = MongoClient(MONGO_URI)
+    db = client.loan_db
+    run = db.runs.find_one({"run_id": RUN_ID})
+    if run:
+        run["status"] = "Completed"
+        db.runs.replace_one({"_id": run["_id"]}, run)
+        print(f"Run {RUN_ID} completed.")
+    else:
+        print("No run found to complete.")
+
+# Task definitions
+start_op = PythonOperator(task_id='start_run', python_callable=start_run, dag=dag)
+ingest_op = PythonOperator(task_id='ingest_docs', python_callable=ingest_docs, dag=dag)
+ocr_op = PythonOperator(task_id='ocr_task', python_callable=ocr_task, dag=dag)
+llm_op = PythonOperator(task_id='llm_task', python_callable=llm_task, dag=dag)
+index_op = PythonOperator(task_id='index_task', python_callable=index_task, dag=dag)
+complete_op = PythonOperator(task_id='complete_run', python_callable=complete_run, dag=dag)
+
+# DAG ordering
+start_op >> ingest_op >> ocr_op >> llm_op >> index_op >> complete_op
