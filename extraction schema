@@ -1,0 +1,26 @@
+{
+	"extraction_result_id": "XRES_345",
+	"run_id": "RUN_CITI_CRE_2024_Q1_001",
+	"tenant_id": "CITI",
+	"doc_id": "DOC12345",
+	"extracted_text": "A very long text from the doc...",
+	"entities": [
+		{
+			"key": "borrower_name",
+			"value": "Jane Smith"
+		},
+		{
+			"key": "loan_amount",
+			"value": "000"
+		}
+	],
+	"confidence_scores": {
+		"borrower_name": 0.95,
+		"loan_amount": 0.88
+	},
+	"timestamp": "2024-01-10T10:01:10Z",
+	"source_step": "doc_extraction",
+	"error_details": {
+		"error_message": null
+	}
+}
