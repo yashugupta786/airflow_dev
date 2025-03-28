@@ -1,0 +1,87 @@
+{
+  "run_id": "RUN_CITI_CRE_2024_Q1_001",                  // Unique identifier for the full run
+  "unique_session_id": "abc123",                          // Optional UUID for internal reference
+  "tenant_id": "CITI",
+  "engagement_id": "ENG_CITI_2024_Q1",
+  "year": "2024",
+  "quarter": "Q1",
+  "industry_types": ["CRE", "C&I"],
+  "environment": "dev",
+  "status": "processing",                                 // processing | completed | failed
+  "triggered_by": "john.doe@ey.com",
+  "start_time": "2024-03-28T09:00:00Z",
+  "end_time": null,
+
+  "sharepoint_info": {
+    "site_url": "https://tenant.sharepoint.com/sites/loanreview",
+    "folder_path": "/Loan File Review/Apple Bank/Q4_2024/CRE",
+    "last_accessed": "2024-03-28T09:01:00Z",
+    "connection_status": "success"
+  },
+
+  "blob_storage": {
+    "container": "loan-docs",
+    "base_path": "RUN_CITI_CRE_2024_Q1_001",              // Folder in blob tied to run_id
+    "upload_time": "2024-03-28T09:05:00Z"
+  },
+
+  "metadata": {
+    "industries": [
+      {
+        "industry_type": "CRE",
+        "obligors": [
+          {
+            "obligor_name": "Sherwood Village Cooperative D Inc",
+            "documents": [
+              {
+                "doc_id": "DOC001",
+                "original_file_name": "loan.pdf",
+                "renamed_file_name": "loan_CITI_CRE_2024_Q1.pdf",
+                "sharepoint_full_path": "/Loan File Review/.../loan.pdf",
+                "blob_path": "RUN_CITI_CRE_2024_Q1_001/Sherwood/loan_CITI_CRE_2024_Q1.pdf",
+                "file_hash_base64": "abc123base64==",
+                "status": "indexed",                              // final status of document
+
+                "steps": [
+                  {
+                    "step_name": "intake",
+                    "start_time": "2024-03-28T09:06:00Z",
+                    "end_time": "2024-03-28T09:06:30Z",
+                    "result": "success",
+                    "log": "Fetched from SharePoint and uploaded to blob."
+                  },
+                  {
+                    "step_name": "extraction",
+                    "start_time": "2024-03-28T09:07:00Z",
+                    "end_time": "2024-03-28T09:07:20Z",
+                    "result": "success",
+                    "log": "OCR extraction complete.",
+                    "extraction_result_id": "EXT123"
+                  },
+                  {
+                    "step_name": "indexing",
+                    "start_time": "2024-03-28T09:08:00Z",
+                    "end_time": "2024-03-28T09:08:15Z",
+                    "result": "success",
+                    "log": "Vector embedding stored."
+                  }
+                ],
+
+                "error_details": {
+                  "step_name": null,
+                  "error_message": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+
+  "ui_flags": {
+    "is_ready_for_extraction": true,
+    "is_ready_for_entity_review": false,
+    "has_failed_docs": false
+  }
+}
