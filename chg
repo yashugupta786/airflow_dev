@@ -1,0 +1,12 @@
+@app.post("/chat")
+async def chat_with_agent(user_input: UserInput):
+    print(f"User asked: {user_input.message}")
+    try:
+        stream = graph.stream({"messages": [{"role": "user", "content": user_input.message}]})
+        for event in stream:
+            for value in event.values():
+                print("Graph output:", value["messages"][-1].content)
+                return {"response": value["messages"][-1].content}
+    except Exception as e:
+        print("Error:", e)
+        return {"error": str(e)}
